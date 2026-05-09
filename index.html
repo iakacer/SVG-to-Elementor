@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elementor SVG Optimizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 64px;
+      gap: 24px;
+    }
+
+    header { text-align: center; }
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header p { margin-top: 8px; color: #6b7280; font-size: 0.9rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      padding: 32px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      margin-bottom: 20px;
+    }
+
+    /* ── Single mode columns ── */
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 680px) { .columns { grid-template-columns: 1fr; } }
+
+    .col label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    .col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 300px;
+      resize: vertical;
+      padding: 14px 16px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #1a1a2e;
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #7c3aed; }
+    textarea[readonly] { background: #f3f4f6; color: #374151; }
+
+    /* ── Drop wrap ── */
+    .drop-wrap { position: relative; }
+    .drop-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      border: 2px dashed #7c3aed;
+      background: rgba(124,58,237,0.07);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #7c3aed;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .drop-wrap.drag-over .drop-overlay { opacity: 1; }
+    .drop-wrap.drag-over textarea       { opacity: 0.3; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 9px 20px;
+      border-radius: 9px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #7c3aed;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+      font-size: 0.9rem;
+      padding: 12px 28px;
+    }
+    .btn-primary:hover { background: #6d28d9; }
+
+    .btn-ghost {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1.5px solid #e5e7eb;
+    }
+    .btn-ghost:hover { background: #e5e7eb; }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .action-row {
+      display: flex;
+      justify-content: center;
+      margin-top: 24px;
+    }
+
+    /* ── Badge ── */
+    .badge {
+      display: none;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .badge.visible { display: inline-block; }
+
+    /* ── Error ── */
+    .error {
+      margin-top: 12px;
+      color: #dc2626;
+      font-size: 0.82rem;
+      min-height: 18px;
+    }
+
+    /* ── Batch drop zone ── */
+    .batch-drop {
+      border: 2px dashed #e5e7eb;
+      border-radius: 12px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .batch-drop input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .batch-drop:hover,
+    .batch-drop.drag-over {
+      border-color: #7c3aed;
+      background: rgba(124,58,237,0.04);
+    }
+    .batch-drop-label {
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+    .batch-drop-label strong { color: #1a1a2e; }
+    .batch-drop-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+
+    /* ── Batch results list ── */
+    .batch-list {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .batch-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #f9fafb;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+
+    .batch-item-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+    .batch-item-name {
+      flex: 1;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #374151;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .batch-item-out {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+
+    .batch-item.success { border-color: #bbf7d0; background: #f0fdf4; }
+    .batch-item.error   { border-color: #fecaca; background: #fff5f5; }
+    .batch-item.error .batch-item-icon { color: #dc2626; }
+
+    .batch-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 10px 22px;
+      border-radius: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s, transform 0.22s;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Elementor SVG Optimizer</h1>
+    <p>Paste, drop, or batch-process SVG files — ready for Elementor color &amp; size control.</p>
+  </header>
+
+  <!-- ── Single file / paste card ── -->
+  <div class="card">
+    <div class="card-title">Single File — Paste or Drop</div>
+    <div class="columns">
+
+      <div class="col">
+        <label for="inputSVG">Input — Paste or drop one .svg</label>
+        <div class="drop-wrap" id="dropWrapInput">
+          <textarea id="inputSVG" spellcheck="false"
+            placeholder="<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; ...>&#10;  ...&#10;</svg>&#10;&#10;— or drag &amp; drop a single .svg file here —"></textarea>
+          <div class="drop-overlay">Drop SVG file here</div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-header">
+          <label for="outputSVG" style="margin-bottom:0">Output — Optimized SVG</label>
+          <span class="badge" id="badge">✓ Ready</span>
+        </div>
+        <div class="drop-wrap" id="dropWrapOutput">
+          <textarea id="outputSVG" readonly spellcheck="false"
+            placeholder="Optimized code will appear here...&#10;&#10;— or drag &amp; drop a .svg file to optimize directly —"></textarea>
+          <div class="drop-overlay">Drop SVG file to optimize instantly</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="btnCopy">📋 Copy</button>
+          <button class="btn btn-ghost" id="btnDownload">⬇ Download</button>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="error" id="errorMsg"></p>
+  </div>
+
+  <!-- ── Batch card ── -->
+  <div class="card">
+    <div class="card-title">Batch — Multiple Files at Once</div>
+
+    <div class="batch-drop" id="batchDrop">
+      <input type="file" id="batchInput" accept=".svg,image/svg+xml" multiple>
+      <span class="batch-drop-icon">📂</span>
+      <p class="batch-drop-label"><strong>Drop multiple .svg files here</strong> or click to browse</p>
+    </div>
+
+    <div class="batch-list" id="batchList"></div>
+
+    <div class="batch-actions" id="batchActions" style="display:none">
+      <button class="btn btn-primary" id="btnDownloadAll">⬇ Download All</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+
+  <script>
+    // ─── State ────────────────────────────────────────────────────────────────
+    let currentFileName = 'optimized';   // base name of last single-file drop
+    let batchResults    = [];            // [{ name, optimizedName, content }]
+
+    // ─── Element refs ─────────────────────────────────────────────────────────
+    const inputEl     = document.getElementById('inputSVG');
+    const outputEl    = document.getElementById('outputSVG');
+    const badge       = document.getElementById('badge');
+    const errorMsg    = document.getElementById('errorMsg');
+    const toast       = document.getElementById('toast');
+    const batchList   = document.getElementById('batchList');
+    const batchActions = document.getElementById('batchActions');
+
+    // ─── Auto-optimize on input (debounced) ───────────────────────────────────
+    let debounceTimer;
+    inputEl.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(runOptimize, 300);
+    });
+
+    function runOptimize() {
+      errorMsg.textContent = '';
+      badge.classList.remove('visible');
+      outputEl.value = '';
+
+      const raw = inputEl.value.trim();
+      if (!raw) return;
+
+      try {
+        outputEl.value = optimize(raw);
+        badge.classList.add('visible');
+      } catch (err) {
+        showError('Error: ' + err.message);
+      }
+    }
+
+    // ─── Copy ─────────────────────────────────────────────────────────────────
+    document.getElementById('btnCopy').addEventListener('click', () => {
+      if (!outputEl.value) return;
+      navigator.clipboard.writeText(outputEl.value).then(() => showToast('Copied!'));
+    });
+
+    // ─── Single download ──────────────────────────────────────────────────────
+    document.getElementById('btnDownload').addEventListener('click', () => {
+      if (!outputEl.value) return;
+      triggerDownload(outputEl.value, 'optimized-' + currentFileName + '.svg');
+    });
+
+    // ─── Single drop zones ────────────────────────────────────────────────────
+    setupSingleDrop('dropWrapInput', (text, fileName) => {
+      currentFileName = stripExt(fileName);
+      inputEl.value   = text;
+      errorMsg.textContent = '';
+      runOptimize();
+    });
+
+    setupSingleDrop('dropWrapOutput', (text, fileName) => {
+      currentFileName = stripExt(fileName);
+      inputEl.value   = text;
+      errorMsg.textContent = '';
+      runOptimize();
+    });
+
+    function setupSingleDrop(wrapId, onFile) {
+      const wrap = document.getElementById(wrapId);
+      wrap.addEventListener('dragenter', e => { e.preventDefault(); wrap.classList.add('drag-over'); });
+      wrap.addEventListener('dragover',  e => { e.preventDefault(); wrap.classList.add('drag-over'); });
+      wrap.addEventListener('dragleave', e => {
+        if (!wrap.contains(e.relatedTarget)) wrap.classList.remove('drag-over');
+      });
+      wrap.addEventListener('drop', e => {
+        e.preventDefault();
+        wrap.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        if (!isSVG(file)) { showError('Please drop an .svg file.'); return; }
+        readFile(file, text => onFile(text, file.name));
+      });
+    }
+
+    // ─── Batch drop zone ──────────────────────────────────────────────────────
+    const batchDrop  = document.getElementById('batchDrop');
+    const batchInput = document.getElementById('batchInput');
+
+    batchDrop.addEventListener('dragenter', e => { e.preventDefault(); batchDrop.classList.add('drag-over'); });
+    batchDrop.addEventListener('dragover',  e => { e.preventDefault(); batchDrop.classList.add('drag-over'); });
+    batchDrop.addEventListener('dragleave', e => {
+      if (!batchDrop.contains(e.relatedTarget)) batchDrop.classList.remove('drag-over');
+    });
+    batchDrop.addEventListener('drop', e => {
+      e.preventDefault();
+      batchDrop.classList.remove('drag-over');
+      handleBatchFiles(e.dataTransfer.files);
+    });
+    batchInput.addEventListener('change', () => handleBatchFiles(batchInput.files));
+
+    function handleBatchFiles(files) {
+      const svgFiles = Array.from(files).filter(isSVG);
+      if (!svgFiles.length) return;
+
+      batchResults = [];
+      batchList.innerHTML = '';
+
+      svgFiles.forEach(file => {
+        const row = addBatchRow(file.name);
+        readFile(file, text => {
+          try {
+            const content       = optimize(text);
+            const optimizedName = 'optimized-' + stripExt(file.name) + '.svg';
+            batchResults.push({ name: file.name, optimizedName, content });
+            row.classList.add('success');
+            row.querySelector('.batch-item-icon').textContent = '✅';
+            row.querySelector('.batch-item-out').textContent  = optimizedName;
+            // per-file download button
+            const dlBtn = document.createElement('button');
+            dlBtn.className   = 'btn btn-ghost';
+            dlBtn.style.fontSize = '0.75rem';
+            dlBtn.style.padding  = '5px 12px';
+            dlBtn.textContent = '⬇';
+            dlBtn.title       = 'Download ' + optimizedName;
+            dlBtn.addEventListener('click', () => triggerDownload(content, optimizedName));
+            row.appendChild(dlBtn);
+          } catch (err) {
+            row.classList.add('error');
+            row.querySelector('.batch-item-icon').textContent = '❌';
+            row.querySelector('.batch-item-out').textContent  = err.message;
+          }
+
+          // Show Download All once all files resolved
+          if (batchResults.length + batchList.querySelectorAll('.error').length === svgFiles.length) {
+            batchActions.style.display = batchResults.length ? 'flex' : 'none';
+          }
+        });
+      });
+    }
+
+    function addBatchRow(fileName) {
+      const row = document.createElement('div');
+      row.className = 'batch-item';
+      row.innerHTML = `
+        <span class="batch-item-icon">⏳</span>
+        <span class="batch-item-name" title="${fileName}">${fileName}</span>
+        <span class="batch-item-out">Processing…</span>
+      `;
+      batchList.appendChild(row);
+      return row;
+    }
+
+    // ─── Download All ─────────────────────────────────────────────────────────
+    document.getElementById('btnDownloadAll').addEventListener('click', () => {
+      batchResults.forEach((r, i) => {
+        // Stagger downloads slightly so the browser doesn't block them
+        setTimeout(() => triggerDownload(r.content, r.optimizedName), i * 120);
+      });
+    });
+
+    // ─── Core optimizer ───────────────────────────────────────────────────────
+    function optimize(raw) {
+      const parser = new DOMParser();
+      const doc    = parser.parseFromString(raw, 'image/svg+xml');
+
+      const parseError = doc.querySelector('parsererror');
+      if (parseError) throw new Error('Invalid SVG — ' + parseError.textContent.split('\n')[0]);
+
+      const svg = doc.querySelector('svg');
+      if (!svg) throw new Error('No <svg> element found.');
+
+      processRoot(svg);
+      processChildren(svg);
+
+      let out = new XMLSerializer().serializeToString(svg);
+      out = cleanNamespaceJunk(out);
+      out = formatOutput(out);
+      return out;
+    }
+
+    function processRoot(svg) {
+      if (!svg.getAttribute('viewBox')) {
+        const w = parseFloat(svg.getAttribute('width'));
+        const h = parseFloat(svg.getAttribute('height'));
+        if (w && h) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      }
+      svg.removeAttribute('width');
+      svg.removeAttribute('height');
+      svg.setAttribute('fill', 'currentColor');
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+      [
+        'xmlns:inkscape','xmlns:sodipodi','xmlns:dc','xmlns:cc',
+        'xmlns:rdf','xmlns:xlink','xmlns:svg',
+        'inkscape:version','inkscape:label',
+        'sodipodi:docname','sodipodi:version',
+        'xml:space','version','id','data-name','enable-background'
+      ].forEach(a => svg.removeAttribute(a));
+
+      removeNodesByLocalName(svg, ['namedview','perspective','metadata','title','desc']);
+
+      Array.from(svg.getElementsByTagName('defs')).forEach(d => {
+        if (!d.children.length) d.parentNode.removeChild(d);
+      });
+    }
+
+    function removeNodesByLocalName(root, names) {
+      const toRemove = [];
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (names.includes(node.localName)) toRemove.push(node);
+      }
+      toRemove.forEach(n => n.parentNode && n.parentNode.removeChild(n));
+    }
+
+    function processChildren(svg) {
+      Array.from(svg.getElementsByTagName('*')).forEach(el => {
+        el.removeAttribute('style');
+        el.removeAttribute('fill');
+        el.removeAttribute('stroke');
+        el.removeAttribute('color');
+        el.removeAttribute('stop-color');
+        el.removeAttribute('flood-color');
+      });
+    }
+
+    function cleanNamespaceJunk(str) {
+      return str
+        .replace(/ xmlns:xlink="[^"]*"/g, '')
+        .replace(/ xmlns:ns\d+="[^"]*"/g, '')
+        .replace(/ ns\d+:[a-zA-Z]+=["'][^"']*["']/g, '')
+        .replace(/ xlink:href=/g, ' href=');
+    }
+
+    function formatOutput(str) {
+      let depth = 0;
+      return str
+        .replace(/></g, '>\n<')
+        .split('\n')
+        .map(line => {
+          line = line.trim();
+          if (!line) return null;
+          if (line.startsWith('</')) depth = Math.max(0, depth - 1);
+          const out = '  '.repeat(depth) + line;
+          if (!line.startsWith('</') && !line.endsWith('/>')) depth++;
+          return out;
+        })
+        .filter(l => l !== null)
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    function isSVG(file) {
+      return file.name.toLowerCase().endsWith('.svg') || file.type === 'image/svg+xml';
+    }
+
+    function stripExt(name) {
+      return name.replace(/\.svg$/i, '');
+    }
+
+    function readFile(file, cb) {
+      const reader = new FileReader();
+      reader.onload = e => cb(e.target.result);
+      reader.readAsText(file);
+    }
+
+    function triggerDownload(content, fileName) {
+      const blob = new Blob([content], { type: 'image/svg+xml' });
+      const url  = URL.createObjectURL(blob);
+      const a    = Object.assign(document.createElement('a'), { href: url, download: fileName });
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function showError(msg) { errorMsg.textContent = msg; }
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+  </script>
+</body>
+</html>
